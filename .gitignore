@@ -1,0 +1,22 @@
+# 本地草稿、暂存和构建目录
+/tmp/
+/output/
+/verification/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# LaTeX 中间产物
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.xdv

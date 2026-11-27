@@ -1,0 +1,173 @@
+% !TeX program = xelatex
+% Compile twice with XeLaTeX. All fonts belong to TeX Live.
+\documentclass[UTF8,11pt,a4paper,fontset=fandol]{ctexart}
+\usepackage[top=23mm,bottom=24mm,left=25mm,right=25mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,booktabs,array,enumitem}
+\usepackage[unicode,hidelinks]{hyperref}
+\hypersetup{pdftitle={降低子序列普适性指数的游程算法},pdfsubject={带权删除距离与指数降幅}}
+\ctexset{section={format=\large\bfseries,beforeskip=1.1ex plus .3ex,afterskip=.7ex}}
+\newtheoremstyle{zh}{.7em}{.45em}{\normalfont}{}{\bfseries}{\quad}{0pt}{}
+\theoremstyle{zh}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{corollary}[theorem]{推论}
+\renewcommand{\proofname}{证明}
+\setlength{\parskip}{.25em}
+\setlist{nosep,leftmargin=2.2em}
+\linespread{1.11}
+\newcommand{\ind}{\iota}
+\newcommand{\cost}{\operatorname{OPT}}
+\newcommand{\sig}{\Sigma}
+\newcommand{\infv}{+\infty}
+\newcommand{\rmq}{\operatorname{RMQ}}
+\newcommand{\pagehead}[1]{\clearpage\section{#1}}
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 降低子序列普适性指数的游程算法\par}
+\vspace{.55em}
+{\large 以指数降幅为参数的带权删除距离\par}
+\end{center}
+
+\noindent\textbf{摘要}\quad
+一个字符串的普适性指数是它能以子序列形式包含全部长度为 $k$ 的词时，$k$ 的最大值。给定指数为 $I$ 的输入，求使其指数恰好降至 $k<I$ 的最小删除代价。设输入有 $r$ 个相同字母的极大连续段（游程）。本文给出确定性算法，在游程输入上用 $O(r(1+\min\{k,I-k\}))$ 时间、$O(r)$ 工作空间计算最优值。算法允许任意非负位置权重，只需知道每段的总权重和最大单点权重。降低一级时，上界为 $O(r)$；即使限定为二元字母表和单位代价，确定性算法在最坏情况下也需要读取 $\Omega(r)$ 个游程记录。
+
+\section{问题与基准}
+固定整数编号的字母表 $\sig=\{1,\ldots,\sigma\}$，全文主结果假定 $\sigma\ge2$。以 $u\preceq w$ 表示可从 $w$ 删去若干位置得到 $u$，各保留位置的相对次序不变。定义
+\[
+  \ind(w)=\max\{h\ge0:\ (\forall u\in\sig^h)\ u\preceq w\}.
+\]
+删除后仍使用原字母表。例如，二元词 $\mathtt{aaabbb\,aaa}$ 包含 $\mathtt{aa,ab,ba,bb}$，指数为 $2$。删去中间两个 $\mathtt b$ 后，$\mathtt{bb}$ 消失，指数降为 $1$。删去任意单个位置，四个长度为 $2$ 的词仍全部出现。因此单位代价的答案是 $2$。
+
+令 $B_i=c_i^{\ell_i}$ 为第 $i$ 个游程，相邻 $c_i$ 不同，$w=B_1\cdots B_r$，$n=\sum_i\ell_i$。位置 $u$ 的删除代价为非负整数 $v_u$。给定每段的长度和
+\[
+ W_i=\sum_{u\in B_i}v_u,\qquad M_i=\max_{u\in B_i}v_u ,
+\]
+求 $\cost_k(w)=\min_{D:\,\ind(w\setminus D)=k}\sum_{u\in D}v_u$。单位代价时 $W_i=\ell_i,\ M_i=1$。若逐位置给权，单遍 $O(n)$ 预处理即可得到以上数据。时间界按字 RAM 计算，段长、下标和总代价均可用常数个机器字表示。
+
+\begin{theorem}\label{thm:main}
+设 $0\le k<I=\ind(w)$。给定上述游程记录，$\cost_k(w)$ 可在 $O(r(1+\min\{k,I-k\}))$ 时间、$O(r)$ 工作空间内计算。若另给每段一个最大权位置，保存回溯指针后，可在相同时间和 $O(r(1+\min\{k,I-k\}))$ 空间内输出一个按游程描述的最优删除方案，以及一个长度为 $k+1$ 的缺失子序列。
+\end{theorem}
+
+Day 等的 STACS 论文\cite[定理 4.4]{day}给出显式字符串上单位代价的 $O(nk)$ 删除算法（$k=0$ 可单独线性处理），期刊版见\cite{journal}。本文同时利用重复段和降幅，尤其覆盖 $k$ 随输入增长而 $I-k$ 固定的情形。Schnoebelen 和 Veron\cite{compressed}研究了文法压缩词的指数计算；这里的优化目标是改变指数所需的删除代价。
+
+\pagehead{拱分解与可保留的层数}
+从左至右扫描字符串，每当已经见到全部 $\sigma$ 个字母，就切下一段并清空已见集合。这些段称为\textbf{拱}，剩下的后缀缺少至少一个字母。这一经典分解用于子序列普适性\cite{barker,day}。以下给出后文需要的证明。
+
+\begin{lemma}\label{lem:arch}
+贪心得到的拱数等于 $\ind(x)$，也等于 $x$ 中从左到右互不相交、各自包含全部字母的连续段的最大数。对任意 $x,y$ 有
+\[
+ \ind(x)+\ind(y)\ \le\ \ind(xy)\ \le\ \ind(x)+\ind(y)+1 .
+\]
+删除一个位置使指数下降至多 $1$。
+\end{lemma}
+\begin{proof}
+设得到 $h$ 个拱，以 $e_1,\ldots,e_h$ 表示其末字母，在剩余后缀中取一个缺少的字母 $z$。从每个拱各选一个字母即可嵌入任意长度 $h$ 的词。反之，逐个向右最早匹配 $e_1\cdots e_hz$，每个 $e_j$ 都首次匹配在第 $j$ 个拱的末端，末尾的 $z$ 无处匹配。最早匹配给后续留下最长的后缀，因此这个词缺失。任意 $m$ 个互不相交的全字母段同样保证指数至少为 $m$，这就证明了最大数表述。拼接两侧的段给出左边不等式；分界线至多穿过一个段，给出右边不等式。删除一个位置至多破坏一组不相交段中的一个。
+\end{proof}
+
+暂将目标放宽为指数至多 $k$。在等总代价时选删除位置最少的解。若其指数低于 $k$，恢复一个被删位置后指数仍至多为 $k$，而代价不升、删除数减少，矛盾。因此该解的指数恰为 $k$。下文可用字典序代价对 $(\sum v_u,|D|)$ 统一实现此规则。各公式写第一分量；全删代价对应 $(W_i,\ell_i)$，只留一个最大权位置对应 $(W_i-M_i,\ell_i-1)$。
+
+在 $B_i$ 前分割输入，记左侧和右侧原串的指数分别为
+\[
+ P_i=\ind(B_1\cdots B_{i-1}),\qquad S_i=\ind(B_i\cdots B_r).
+\]
+取任一指数恰为 $k$ 的保留串，在同一原始分界处分割为 $x_i y_i$。已完成的拱数为 $b_i=\ind(x_i)$。由引理~\ref{lem:arch} 和子序列单调性，
+\begin{equation}
+ L_i:=\max(0,k-S_i-1)\ \le\ b_i\ \le\ U_i:=\min(k,P_i).
+ \label{eq:band}
+\end{equation}
+尤其 $P_i+S_i\le I$，故每段至多需要
+\[
+ h_i=U_i-L_i+1\ \le\ \min\{k+1,I-k+2\}
+\]
+层。两端点 $L_i,U_i$ 均随 $i$ 单调不减。下界中的 $1$ 来自跨过分界的一座拱。以 $\mathtt{ab}$ 在两字母之间分割为例，两侧指数均为零，拼接后指数为一。
+
+正向和逆向各扫一次即可得到全部 $P_i,S_i$。逆序不改变指数，因为反转把长度固定的词一一对应。一个游程只需处理第一份字母；如果它恰好封闭一座拱且 $\ell_i\ge2$，再把该字母放入新拱的已见集合即可。用轮次标记重置集合只需常数时间。非平凡条件 $I>0$ 保证 $\sigma\le r$。
+
+\pagehead{用一个缺失词描述最优删除}
+设保留串指数为 $k$。引理~\ref{lem:arch} 的证明构造了缺失词 $e_1\cdots e_kz$。想象指针依次等待这 $k+1$ 个字母，在保留位置上做最早匹配。指针在每一拱的末端前进一次，最后仍在等待 $z$。反过来，只要构造这样的匹配过程，末尾已匹配 $k$ 次且仍在等待，按顺序记下的 $k$ 个已匹配字母与最后一个等待字母就构成缺失词。
+
+\begin{lemma}\label{lem:normal}
+存在一个最优解及其缺失词匹配过程，满足下表。表中的 $c$ 是当前游程的字母，$a$ 是其他字母。“前进”指匹配了缺失词的一个字母，下一等待字母可以仍为 $c$。
+\end{lemma}
+\begin{center}
+\begin{tabular}{@{}llllr@{}}
+\toprule
+入段等待 & 出段等待 & 前进次数 & 保留的位置 & 删除代价\\
+\midrule
+$a\ne c$ & $a$ & 0 & 全部 & $0$\\
+$c$ & $c$ & 0 & 无 & $W_i$\\
+$c$ & $c$ & 1 & 一个最大权位置 & $W_i-M_i$\\
+$c$ & $a\ne c$ & 1 & 全部 & $0$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{proof}
+从字典序最优解及其拱末字母构成的缺失词出发。一段相同字母内至多封闭一座拱，因为封闭后要见到另一种字母才能再次封闭。入段等待 $a\ne c$ 时，恢复全部 $c$ 不影响匹配。若等待 $c$ 且不前进，就必须删光该段。若前进后仍等待 $c$，就恰好保留一份，选权重最大的位置最省。若前进后等待其他字母，可以保留全段，第一份 $c$ 完成匹配。这些替换保留了各段边界的等待字母和累计前进数，代价对均不增加。因此原缺失词仍然缺失，新解仍最优，边界计数仍满足式~\eqref{eq:band}。这里使用的是原最优解的拱计数，替换后无须重新选择缺失词。
+\end{proof}
+
+例如，仍取 $\mathtt{aaabbb\,aaa}$，首尾两段每个位置权重为 $4$，中间三个权重依次为 $2,7,3$。要把指数降到 $1$，可以只保留中间权重为 $7$ 的位置，花费 $2+3=5$，缺失词为 $\mathtt{bb}$。若中间至少保留两份且首尾各保留一份，则保留串包含 $\mathtt{abba}$，其中有两个拱。故任何别的可行方案或者也把中段删到至多一份，或者删光一端并花费 $12$。这同时给出 $5$ 的下界。
+
+引理~\ref{lem:normal} 的量词很重要：它保证有一个最优见证每段前进至多一次。任意预先指定的待匹配词不具有这一性质，例如 $\mathtt{aaaa}$ 可以在一个游程里匹配多次。算法要寻找的是某个缺失词，因而可以选拱末字母给出的见证。对于一元字母表，指数就是长度，最优解取 $n-k$ 个权重最小的位置；该情形并不满足上表的压缩依据。
+
+\pagehead{递推与复杂度}
+仅在入段等待字母等于该段字母时设状态。令 $F_b(i)$ 表示在 $B_i$ 之前已经前进恰好 $b$ 次、正在等待 $c_i$ 的最小代价。先考虑不裁剪的表，并限制匹配过程遵守引理~\ref{lem:normal} 的四种转移。记 $p=p(i)$ 为 $c_i$ 上一次出现的游程编号，无前次出现时记为零。定义
+\[
+ A_b(p)=
+ \begin{cases}
+  0 & p=0,\ b=0,\\
+  +\infty & p=0,\ b>0,\\
+  \min\{F_b(p)+W_p,\ F_{b-1}(p)+W_p-M_p\} & p>0 .
+ \end{cases}
+\]
+越界的层和空集的最小值都取 $+\infty$。递推为
+\begin{equation}
+ F_b(i)=\min\left\{ A_b(p),\ \min_{p<j<i}F_{b-1}(j)\right\}.
+ \label{eq:dp}
+\end{equation}
+第一项表示离开前一同字母段后一直等待 $c_i$，或从串首开始等待它。第二项表示在 $p$ 与 $i$ 之间的第 $j$ 段从 $c_j$ 切换到 $c_i$；这必有 $c_j\ne c_i$，之后至 $i$ 前没有 $c_i$。从 $j$ 起的这些段全部保留，代价为零。两种情况按最后进入当前等待状态的位置穷尽所有路径，每一项也都可由表中的动作实现。
+
+对每个末尾等待字母 $a\in\sig$，把 $i=r+1$ 当作一次只查询、不处理的虚拟段，取 $p$ 为 $a$ 的最后一个游程，代入式~\eqref{eq:dp} 并取 $b=k$。所有字母的最小值为答案。每条终止路径产生一个缺失词，其指数至多 $k$；反向由引理~\ref{lem:normal} 得到一条来自字典序最优解的路径。两者合在一起证明最优代价对相等，也保证所得解的指数恰为 $k$。
+
+\noindent\textbf{带内求值。}
+只保留满足 $L_i\le b\le U_i$ 的 $F_b(i)$，其余视为 $+\infty$。裁剪只删除路径，而上述最优路径在每个被查询的真实段都满足式~\eqref{eq:band}，故答案保持。固定 $b$ 时，有效段号是一个连续区间 $J_b$，可能为空。其左端由 $U_i\ge b$ 的首个下标决定，右端由 $L_i\le b$ 的末个下标决定。随 $b$ 递增用两个单调指针即可在总计 $O(r+k+1)$ 时间内定位。
+
+\begin{enumerate}[label=\arabic*.]
+\item 预处理前驱 $p(i)$、各字母末次出现处及 $L_i,U_i$。令第 $-1$ 层为空。
+\item 对 $b=0,\ldots,k$，从左至右计算 $J_b$。式~\eqref{eq:dp} 的区间最小值取上一层与 $(p,i)$ 的交集；同层只访问更早的 $p$。计算完一层，对其数组建立线性预处理、常数查询的静态区间最小值结构\cite{rmq}，并保留取得最小值的下标。
+\item 在第 $k$ 层完成时执行终端查询。仅求值时滚动保留最后两层；两层以各自的起始下标寻址，空层和越界可在常数时间判别。
+\end{enumerate}
+
+故包含预处理的时间为 $O(r+\sum_i h_i)$，两层和辅助数组共用 $O(r)$ 字。$I\le r$ 保证逐层开销已计入。结合式~\eqref{eq:band} 即得定理~\ref{thm:main} 的界。若需输出，对每个有效状态保存取优分支与前驱。沿解反向追踪，跳过的段全保留；只留一份时使用预存的最大权位置。每步严格退至更早的真实段，至多 $r$ 步。依次记录前进时的字母并附上终端等待字母，即得缺失词。
+
+\pagehead{降低一级的最优性}
+\begin{corollary}
+对于 $k=I-1$，最小删除代价可在 $O(r)$ 时间内计算。对随机访问游程记录的确定性精确算法，这一界在最坏情形下达到最优阶，即使总长度 $n$ 和指数 $I$ 已给出。
+\end{corollary}
+\begin{proof}
+上界由定理~\ref{thm:main} 直接得到。下界取二元字母交替的 $r$ 个游程，所有段长为 $3$、所有位置的删除代价为 $1$。只要各段长度至少为 $2$，第一段提供首字母，此后每段都用第一份字母封闭前一拱，再用第二份开启下一拱。于是 $I=r-1$。原输入删去任意一个位置后各段仍至少长 $2$。若把一个内段从 $3$ 删到 $1$，该内段封闭一拱后没有余字母，下一段只能开启新拱，其余每段照常封闭，指数恰降一级。故基准输入的答案是 $2$。
+
+现在把内部游程分成 $\lfloor(r-2)/2\rfloor$ 对不相交的相邻段。任选一对，把段长从 $(3,3)$ 改成 $(2,4)$。总长度、字母序列、段数和原指数均不变。但从长度 $2$ 的内段删去一份已足以降低一级，答案变为 $1$。在基准输入上，若某一对的两个记录都未被读取，算法无法区分这一修改。于是最坏情况下至少读取 $\lfloor(r-2)/2\rfloor$ 个记录。
+\end{proof}
+
+\noindent\textbf{结果的范围。}
+原串逐字给出时，总时间为 $O(n+r(1+\min\{k,I-k\}))$。即使长串几乎没有重复，固定降幅仍给出线性时间。相反，当 $r=\Theta(n)$ 且 $k$ 与 $I-k$ 都为 $\Theta(n)$ 时，该界仍为二次。上面的读取下界仅匹配降低一级的情形。STACS 论文\cite[第 5 节]{day}提出了固定字母表上对任意降幅寻求更快算法的问题，本文的参数界只覆盖其中一部分。
+
+\noindent\textbf{可以继续研究的两个切口。}
+第一，若只允许删除一个连续区间，固定左端点后，剩余词的指数随右端点右移而单调不增。可从快速计算前后缀拼接的指数入手；已有文献处理了只能删除前缀或后缀的情形\cite{barker}。第二，同一字符串上的多个目标 $k$ 可共享未裁剪表的各层，每层额外做一次终端扫描即可得到该目标的答案。对于分散在少数层上的查询，可进一步研究能否让总时间取决于各查询所需状态的并集。这两个问题均可用组合证明和复杂度界来评价。
+
+\small
+\begin{thebibliography}{9}\setlength{\itemsep}{.18em}
+\bibitem{day} J. D. Day, P. Fleischmann, M. Kosche, T. Koß, F. Manea, S. Siemer.
+\href{https://doi.org/10.4230/LIPIcs.STACS.2021.25}{The Edit Distance to $k$-Subsequence Universality}.
+\emph{STACS}, LIPIcs 187, 25:1--25:19, 2021.
+\bibitem{journal} J. D. Day, P. Fleischmann, M. Kosche, T. Koß, F. Manea, S. Siemer.
+\href{https://doi.org/10.1016/j.jcss.2025.103681}{The edit distance to $k$-subsequence universality}.
+\emph{Journal of Computer and System Sciences} 154, 103681, 2025.
+\bibitem{barker} L. Barker, P. Fleischmann, K. Harwardt, F. Manea, D. Nowotka.
+\href{https://arxiv.org/abs/2003.04629}{Scattered Factor-Universality of Words}. \emph{DLT}, 14--28, 2020.
+\bibitem{compressed} P. Schnoebelen, J. Veron.
+\href{https://arxiv.org/abs/2304.11932}{On Arch Factorization and Subword Universality for Words and Compressed Words}. \emph{WORDS}, 2023.
+\bibitem{rmq} J. Fischer.
+\href{https://arxiv.org/abs/0812.2775}{Optimal Succinctness for Range Minimum Queries}. arXiv:0812.2775, 2008.
+\end{thebibliography}
+\end{document}
